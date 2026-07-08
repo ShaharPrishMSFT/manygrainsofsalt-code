@@ -54,7 +54,7 @@ def run_conversation(
             max_completion_tokens=4096,
         )
         if not thinking:
-            kwargs["reasoning_effort"] = "none"
+            kwargs["reasoning_effort"] = "low"
 
         response = litellm.completion(**kwargs)
 
