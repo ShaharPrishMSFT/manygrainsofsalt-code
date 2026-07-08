@@ -47,14 +47,19 @@ def run_conversation(
             messages=messages,
             temperature=0.7,
             max_tokens=512,
+            max_completion_tokens=512,
         )
 
         choice = response.choices[0]
         content = choice.message.content
-        # Some reasoning models put output elsewhere
-        if not content and hasattr(choice.message, "reasoning_content"):
-            content = choice.message.reasoning_content
-        daffy_says = content.strip() if content else "[no response]"
+        daffy_says = content.strip() if content and content.strip() else "[no response]"
+
+        if daffy_says == "[no response]":
+            # Debug: show what we actually got back
+            import sys
+            print(f"  [DEBUG] finish_reason={choice.finish_reason}, "
+                  f"content repr={repr(content)}", file=sys.stderr)
+
         messages.append({"role": "assistant", "content": daffy_says})
 
         is_post_flip = i >= FLIP_INDEX
