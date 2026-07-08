@@ -1,0 +1,16 @@
+[project]
+name = "bugs-bunny-attack"
+version = "0.1.0"
+description = "Reproduction of the Bugs Bunny Attack — an LLM robustness probe exploiting the uninstructed contradiction reflex"
+requires-python = ">=3.11"
+dependencies = [
+    "litellm>=1.40.0",
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+bugs-bunny = "bugs_bunny_attack.cli:main"
+
+[tool.uv]
+package = true
