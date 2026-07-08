@@ -7,13 +7,19 @@ Usage:
     uv run bugs-bunny list-sweeps
 """
 
+from pathlib import Path
 from typing import Optional
 
 import typer
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
+
+# Load .env from the project root (or cwd)
+load_dotenv(Path(__file__).parent.parent / ".env")
+load_dotenv()  # also check cwd
 
 from .experiment import SWEEPS, BUGS_TURNS, FLIP_INDEX
 from .runner import run_sweep
