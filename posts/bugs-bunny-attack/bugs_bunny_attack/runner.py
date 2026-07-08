@@ -46,10 +46,15 @@ def run_conversation(
             model=model,
             messages=messages,
             temperature=0.7,
-            max_tokens=256,
+            max_tokens=512,
         )
 
-        daffy_says = response.choices[0].message.content.strip()
+        choice = response.choices[0]
+        content = choice.message.content
+        # Some reasoning models put output elsewhere
+        if not content and hasattr(choice.message, "reasoning_content"):
+            content = choice.message.reasoning_content
+        daffy_says = content.strip() if content else "[no response]"
         messages.append({"role": "assistant", "content": daffy_says})
 
         is_post_flip = i >= FLIP_INDEX
