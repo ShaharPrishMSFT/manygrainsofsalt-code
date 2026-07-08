@@ -37,8 +37,9 @@ def run_conversation(
     If on_turn is provided, it's called after each turn completes
     so the caller can display the exchange live.
 
-    If thinking=False, passes reasoning_effort="low" to minimize
-    chain-of-thought (model responds more reflexively with less deliberation).
+    If thinking=True, passes reasoning_effort="high" to enable deep
+    chain-of-thought. Default (thinking=False) uses reasoning_effort="low"
+    so the model responds more reflexively with less deliberation.
     """
     messages = [{"role": "system", "content": system_prompt}]
     turns: list[TurnResult] = []
@@ -53,7 +54,9 @@ def run_conversation(
             max_tokens=4096,
             max_completion_tokens=4096,
         )
-        if not thinking:
+        if thinking:
+            kwargs["reasoning_effort"] = "high"
+        else:
             kwargs["reasoning_effort"] = "low"
 
         response = litellm.completion(**kwargs)
