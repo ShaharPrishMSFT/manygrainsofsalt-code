@@ -50,7 +50,6 @@ def run_conversation(
         kwargs: dict = dict(
             model=model,
             messages=messages,
-            temperature=0.7,
             max_tokens=4096,
             max_completion_tokens=4096,
         )
