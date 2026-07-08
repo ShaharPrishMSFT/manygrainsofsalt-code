@@ -6,6 +6,8 @@ from typing import Callable, Optional
 
 import litellm
 
+litellm.drop_params = True
+
 from .experiment import (
     BUGS_TURNS,
     FLIP_INDEX,
