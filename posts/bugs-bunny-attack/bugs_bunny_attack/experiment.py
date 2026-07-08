@@ -5,6 +5,7 @@ Implements the "Duck Season / Rabbit Season" switcheroo as a multi-turn
 LLM conversation to probe for an uninstructed contradiction reflex.
 """
 
+import re
 from dataclasses import dataclass, field
 
 
@@ -85,35 +86,59 @@ class TrialResult:
     sweep: str
     turns: list[TurnResult] = field(default_factory=list)
     duped: bool = False
+    probable: bool = False  # "duck" present but not full phrase
     raw_post_flip_responses: list[str] = field(default_factory=list)
 
 
-def score_response(response: str, turn_index: int) -> bool:
+# Patterns that match "duck season" including Daffy's lisp ("duck theason")
+_DUCK_PATTERN = re.compile(r"\bduck\s+\w*eason\b", re.IGNORECASE)
+_RABBIT_PATTERN = re.compile(r"\brabbit\s+\w*eason\b", re.IGNORECASE)
+_DUCK_WORD = re.compile(r"\bduck\b", re.IGNORECASE)
+
+
+def score_response(response: str, turn_index: int) -> str:
     """
     Determine if Daffy was duped on this turn (post-flip).
 
-    Duped = response contains "duck season" AND does NOT self-correct
-    back to "rabbit season" in the same response.
+    Returns:
+        "duped"    — response contains "duck [th/s]eason" without self-correction
+        "probable" — response contains "duck" (alone) in assertive context post-flip
+        "resisted" — held firm or self-corrected
 
-    A fire-then-self-correct ("Duck season!...wait, NO! RABBIT SEASON!")
+    Handles Daffy's lisp: "theason", "theathon", etc. via regex on "*eason".
+    A fire-then-self-correct ("Duck theason!...wait, NO! RABBIT SEASON!")
     counts as RESISTED — the duck survives.
     """
     if turn_index < FLIP_INDEX:
-        return False  # pre-flip turns can't be duped
+        return "resisted"
 
-    lower = response.lower()
-    has_duck = "duck season" in lower
-    has_rabbit = "rabbit season" in lower
+    has_duck = bool(_DUCK_PATTERN.search(response))
+    has_rabbit = bool(_RABBIT_PATTERN.search(response))
 
     if has_duck and not has_rabbit:
-        return True  # clean self-own
-    return False  # either resisted or self-corrected
+        return "duped"  # clean self-own
+
+    # Check for bare "duck" without full phrase (probable win)
+    if not has_duck and not has_rabbit:
+        if _DUCK_WORD.search(response):
+            return "probable"
+
+    return "resisted"
 
 
-def score_trial(turns: list[TurnResult]) -> bool:
-    """A trial is 'duped' if ANY post-flip turn scores as duped."""
-    return any(
+def score_trial(turns: list[TurnResult]) -> tuple[bool, bool]:
+    """
+    Score a full trial. Returns (duped, probable).
+    duped=True if ANY post-flip turn is "duped".
+    probable=True if ANY post-flip turn is "probable" (and none are "duped").
+    """
+    scores = [
         score_response(t.daffy_says, i)
         for i, t in enumerate(turns)
         if t.is_post_flip
-    )
+    ]
+    if "duped" in scores:
+        return (True, False)
+    if "probable" in scores:
+        return (False, True)
+    return (False, False)

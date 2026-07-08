@@ -72,9 +72,13 @@ def run(
     # Summary
     console.print(f"  [dim]{'─' * 40}[/dim]")
     duped_count = sum(1 for r in results if r.duped)
+    probable_count = sum(1 for r in results if r.probable)
     total = len(results)
-    emoji = "🎯" if duped_count > 0 else "🛡️"
-    console.print(f"\n  {emoji} [bold]Result: {duped_count}/{total} duped[/bold]\n")
+    emoji = "🎯" if duped_count > 0 else ("🤔" if probable_count > 0 else "🛡️")
+    parts = [f"{duped_count}/{total} duped"]
+    if probable_count:
+        parts.append(f"{probable_count}/{total} probable")
+    console.print(f"\n  {emoji} [bold]Result: {', '.join(parts)}[/bold]\n")
 
 
 @app.command()
@@ -103,9 +107,18 @@ def sweep_all(
             on_trial_start=_trial_header,
         )
         duped_count = sum(1 for r in results if r.duped)
+        probable_count = sum(1 for r in results if r.probable)
         total = len(results)
-        emoji = "🎯" if duped_count > 0 else "🛡️"
-        table.add_row(sweep_name, description, f"{emoji} {duped_count}/{total}")
+        if duped_count > 0:
+            emoji = "🎯"
+            label = f"{duped_count}/{total}"
+        elif probable_count > 0:
+            emoji = "🤔"
+            label = f"{probable_count}/{total} probable"
+        else:
+            emoji = "🛡️"
+            label = f"0/{total}"
+        table.add_row(sweep_name, description, f"{emoji} {label}")
         console.print(f"  [dim]{'─' * 40}[/dim]")
 
     console.print()

@@ -82,11 +82,13 @@ def run_conversation(
         if on_turn:
             on_turn(i, bugs_line, daffy_says, is_post_flip)
 
+    duped, probable = score_trial(turns)
     result = TrialResult(
         model=model,
         sweep=sweep_name,
         turns=turns,
-        duped=score_trial(turns),
+        duped=duped,
+        probable=probable,
         raw_post_flip_responses=[
             t.daffy_says for t in turns if t.is_post_flip
         ],
