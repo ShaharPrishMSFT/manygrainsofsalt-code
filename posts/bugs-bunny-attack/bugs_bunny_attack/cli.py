@@ -11,11 +11,22 @@ Usage:
 from pathlib import Path
 
 import typer
+import os
+import sys
+
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
+
+# Force UTF-8 output on Windows to avoid legacy cp1252 encoding errors
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Load .env from the project root (or cwd)
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -26,10 +37,10 @@ from .runner import run_sweep
 
 app = typer.Typer(
     name="bugs-bunny",
-    help="The Bugs Bunny Attack — LLM contradiction reflex probe",
+    help="The Bugs Bunny Attack -- LLM contradiction reflex probe",
     no_args_is_help=True,
 )
-console = Console()
+console = Console(force_terminal=True)
 
 CHARACTERS_HELP = f"Character variant: {', '.join(CHARACTER_SETS.keys())}"
 
@@ -48,7 +59,7 @@ def _live_turn(turn_index: int, bugs_says: str, daffy_says: str, is_post_flip: b
 
 def _trial_header(trial_num: int) -> None:
     """Print trial separator."""
-    console.print(f"  [dim]{'─' * 40}[/dim]")
+    console.print(f"  [dim]{'-' * 40}[/dim]")
     console.print(f"  [bold]Trial {trial_num + 1}[/bold]\n")
 
 
@@ -79,15 +90,15 @@ def run(
     )
 
     # Summary
-    console.print(f"  [dim]{'─' * 40}[/dim]")
+    console.print(f"  [dim]{'-' * 40}[/dim]")
     duped_count = sum(1 for r in results if r.duped)
     probable_count = sum(1 for r in results if r.probable)
     total = len(results)
-    emoji = "🎯" if duped_count > 0 else ("🤔" if probable_count > 0 else "🛡️")
+    marker = "[DUPED]" if duped_count > 0 else ("[PROBABLE]" if probable_count > 0 else "[RESISTED]")
     parts = [f"{duped_count}/{total} duped"]
     if probable_count:
         parts.append(f"{probable_count}/{total} probable")
-    console.print(f"\n  {emoji} [bold]Result: {', '.join(parts)}[/bold]\n")
+    console.print(f"\n  {marker} [bold]Result: {', '.join(parts)}[/bold]\n")
 
 
 @app.command()
@@ -123,16 +134,16 @@ def sweep_all(
         probable_count = sum(1 for r in results if r.probable)
         total = len(results)
         if duped_count > 0:
-            emoji = "🎯"
+            marker = "[DUPED]"
             label = f"{duped_count}/{total}"
         elif probable_count > 0:
-            emoji = "🤔"
+            marker = "[PROB]"
             label = f"{probable_count}/{total} probable"
         else:
-            emoji = "🛡️"
+            marker = "[OK]"
             label = f"0/{total}"
-        table.add_row(sweep_name, description, f"{emoji} {label}")
-        console.print(f"  [dim]{'─' * 40}[/dim]")
+        table.add_row(sweep_name, description, f"{marker} {label}")
+        console.print(f"  [dim]{'-' * 40}[/dim]")
 
     console.print()
     console.print(table)
