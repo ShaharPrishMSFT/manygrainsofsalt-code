@@ -26,6 +26,7 @@ def run_conversation(
     system_prompt: str,
     sweep_name: str,
     on_turn: Optional[TurnCallback] = None,
+    thinking: bool = True,
 ) -> TrialResult:
     """
     Run a single Bugs/Daffy conversation and return scored results.
@@ -35,6 +36,9 @@ def run_conversation(
 
     If on_turn is provided, it's called after each turn completes
     so the caller can display the exchange live.
+
+    If thinking=False, passes reasoning_effort="none" to disable
+    chain-of-thought (model responds reflexively without deliberation).
     """
     messages = [{"role": "system", "content": system_prompt}]
     turns: list[TurnResult] = []
@@ -42,13 +46,17 @@ def run_conversation(
     for i, bugs_line in enumerate(BUGS_TURNS):
         messages.append({"role": "user", "content": bugs_line})
 
-        response = litellm.completion(
+        kwargs: dict = dict(
             model=model,
             messages=messages,
             temperature=0.7,
             max_tokens=4096,
             max_completion_tokens=4096,
         )
+        if not thinking:
+            kwargs["reasoning_effort"] = "none"
+
+        response = litellm.completion(**kwargs)
 
         choice = response.choices[0]
         content = choice.message.content
@@ -88,6 +96,7 @@ def run_sweep(
     model: str,
     sweep: str = "sweep-1",
     trials: int = 2,
+    thinking: bool = True,
     on_turn: Optional[TurnCallback] = None,
     on_trial_start: Optional[Callable[[int], None]] = None,
 ) -> list[TrialResult]:
@@ -101,7 +110,10 @@ def run_sweep(
     for trial_num in range(trials):
         if on_trial_start:
             on_trial_start(trial_num)
-        result = run_conversation(model, system_prompt, sweep_name=sweep, on_turn=on_turn)
+        result = run_conversation(
+            model, system_prompt, sweep_name=sweep,
+            on_turn=on_turn, thinking=thinking,
+        )
         results.append(result)
 
     return results

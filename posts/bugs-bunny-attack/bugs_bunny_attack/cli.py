@@ -53,15 +53,18 @@ def run(
     model: str = typer.Option(..., help="Model name (litellm format, e.g. 'claude-sonnet-4-5', 'gpt-4o')"),
     sweep: str = typer.Option("sweep-1", help="Sweep variant: sweep-1, sweep-2, or sweep-3"),
     trials: int = typer.Option(2, help="Number of trials to run"),
+    no_thinking: bool = typer.Option(False, "--no-thinking", help="Disable reasoning/chain-of-thought (reasoning_effort=none)"),
 ):
     """Run the switcheroo experiment with a specific model and sweep."""
     description, _ = SWEEPS[sweep]
-    console.print(f"\n[bold]Running:[/bold] {model} x {sweep} ({description}) x {trials} trials\n")
+    thinking_label = " [dim](no thinking)[/dim]" if no_thinking else ""
+    console.print(f"\n[bold]Running:[/bold] {model} x {sweep} ({description}) x {trials} trials{thinking_label}\n")
 
     results = run_sweep(
         model=model,
         sweep=sweep,
         trials=trials,
+        thinking=not no_thinking,
         on_turn=_live_turn,
         on_trial_start=_trial_header,
     )
@@ -78,9 +81,11 @@ def run(
 def sweep_all(
     model: str = typer.Option(..., help="Model name (litellm format)"),
     trials: int = typer.Option(2, help="Number of trials per sweep"),
+    no_thinking: bool = typer.Option(False, "--no-thinking", help="Disable reasoning/chain-of-thought (reasoning_effort=none)"),
 ):
     """Run all three sweeps for a given model."""
-    console.print(f"\n[bold]Model:[/bold] {model}  |  [bold]Trials:[/bold] {trials}\n")
+    thinking_label = " (no thinking)" if no_thinking else ""
+    console.print(f"\n[bold]Model:[/bold] {model}  |  [bold]Trials:[/bold] {trials}{thinking_label}\n")
 
     table = Table(title=f"Results: {model}")
     table.add_column("Sweep", style="cyan")
@@ -93,6 +98,7 @@ def sweep_all(
             model=model,
             sweep=sweep_name,
             trials=trials,
+            thinking=not no_thinking,
             on_turn=_live_turn,
             on_trial_start=_trial_header,
         )
