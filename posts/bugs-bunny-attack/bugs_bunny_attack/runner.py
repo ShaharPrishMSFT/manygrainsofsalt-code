@@ -37,8 +37,8 @@ def run_conversation(
     If on_turn is provided, it's called after each turn completes
     so the caller can display the exchange live.
 
-    If thinking=False, passes reasoning_effort="none" to disable
-    chain-of-thought (model responds reflexively without deliberation).
+    If thinking=False, passes reasoning_effort="low" to minimize
+    chain-of-thought (model responds more reflexively with less deliberation).
     """
     messages = [{"role": "system", "content": system_prompt}]
     turns: list[TurnResult] = []
