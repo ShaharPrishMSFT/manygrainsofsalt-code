@@ -32,7 +32,7 @@ if sys.platform == "win32":
 load_dotenv(Path(__file__).parent.parent / ".env")
 load_dotenv()  # also check cwd
 
-from .experiment import CHARACTER_SETS, get_sweeps, get_attacker_turns, FLIP_INDEX
+from .experiment import CHARACTER_SETS, SCENARIOS, get_sweeps, get_attacker_turns, FLIP_INDEX
 from .runner import run_sweep
 
 app = typer.Typer(
@@ -43,6 +43,7 @@ app = typer.Typer(
 console = Console(force_terminal=True)
 
 CHARACTERS_HELP = f"Character variant: {', '.join(CHARACTER_SETS.keys())}"
+SCENARIO_HELP = f"Scenario: {', '.join(SCENARIOS.keys())}"
 
 
 def _live_turn(turn_index: int, bugs_says: str, daffy_says: str, is_post_flip: bool) -> None:
@@ -69,21 +70,29 @@ def run(
     sweep: str = typer.Option("sweep-1", help="Sweep variant: sweep-1, sweep-2, or sweep-3"),
     trials: int = typer.Option(2, help="Number of trials to run"),
     characters: str = typer.Option("canonical", help=CHARACTERS_HELP),
+    scenario: str = typer.Option("hunting", help=SCENARIO_HELP),
     thinking: bool = typer.Option(False, "--thinking", help="Enable high reasoning effort (reasoning_effort=high). Default is low/minimal."),
 ):
     """Run the switcheroo experiment with a specific model and sweep."""
     chars = CHARACTER_SETS[characters]
-    sweeps = get_sweeps(chars)
+    scen = SCENARIOS[scenario]
+    sweeps = get_sweeps(chars, scen)
     description, _ = sweeps[sweep]
     thinking_label = " [dim](thinking=high)[/dim]" if thinking else ""
-    chars_label = f" [dim][{characters}][/dim]" if characters != "canonical" else ""
-    console.print(f"\n[bold]Running:[/bold] {model} x {sweep} ({description}) x {trials} trials{thinking_label}{chars_label}\n")
+    extra = []
+    if characters != "canonical":
+        extra.append(characters)
+    if scenario != "hunting":
+        extra.append(scenario)
+    extra_label = f" [dim][{', '.join(extra)}][/dim]" if extra else ""
+    console.print(f"\n[bold]Running:[/bold] {model} x {sweep} ({description}) x {trials} trials{thinking_label}{extra_label}\n")
 
     results = run_sweep(
         model=model,
         sweep=sweep,
         trials=trials,
         characters=characters,
+        scenario=scenario,
         thinking=thinking,
         on_turn=_live_turn,
         on_trial_start=_trial_header,
@@ -106,15 +115,17 @@ def sweep_all(
     model: str = typer.Option(..., help="Model name (litellm format)"),
     trials: int = typer.Option(2, help="Number of trials per sweep"),
     characters: str = typer.Option("canonical", help=CHARACTERS_HELP),
+    scenario: str = typer.Option("hunting", help=SCENARIO_HELP),
     thinking: bool = typer.Option(False, "--thinking", help="Enable high reasoning effort (reasoning_effort=high). Default is low/minimal."),
 ):
     """Run all three sweeps for a given model."""
     chars = CHARACTER_SETS[characters]
-    sweeps = get_sweeps(chars)
+    scen = SCENARIOS[scenario]
+    sweeps = get_sweeps(chars, scen)
     thinking_label = " (thinking=high)" if thinking else ""
-    console.print(f"\n[bold]Model:[/bold] {model}  |  [bold]Trials:[/bold] {trials}  |  [bold]Characters:[/bold] {characters}{thinking_label}\n")
+    console.print(f"\n[bold]Model:[/bold] {model}  |  [bold]Trials:[/bold] {trials}  |  [bold]Characters:[/bold] {characters}  |  [bold]Scenario:[/bold] {scenario}{thinking_label}\n")
 
-    table = Table(title=f"Results: {model} [{characters}]")
+    table = Table(title=f"Results: {model} [{characters}/{scenario}]")
     table.add_column("Sweep", style="cyan")
     table.add_column("Description")
     table.add_column("Result", justify="center")
@@ -126,6 +137,7 @@ def sweep_all(
             sweep=sweep_name,
             trials=trials,
             characters=characters,
+            scenario=scenario,
             thinking=thinking,
             on_turn=_live_turn,
             on_trial_start=_trial_header,
@@ -152,10 +164,12 @@ def sweep_all(
 @app.command()
 def list_sweeps(
     characters: str = typer.Option("canonical", help=CHARACTERS_HELP),
+    scenario: str = typer.Option("hunting", help=SCENARIO_HELP),
 ):
     """Show available sweep variants and their system prompts."""
     chars = CHARACTER_SETS[characters]
-    sweeps = get_sweeps(chars)
+    scen = SCENARIOS[scenario]
+    sweeps = get_sweeps(chars, scen)
     for name, (description, prompt) in sweeps.items():
         console.print(Panel(
             Text(prompt, style="dim"),
@@ -171,7 +185,6 @@ def list_characters():
     table.add_column("Name", style="cyan")
     table.add_column("Attacker")
     table.add_column("Victim")
-    table.add_column("Seasons")
     table.add_column("Description")
 
     for name, chars in CHARACTER_SETS.items():
@@ -179,8 +192,29 @@ def list_characters():
             name,
             chars.attacker,
             chars.victim,
-            f"{chars.victim_season}/{chars.attacker_season}",
             chars.description,
+        )
+
+    console.print()
+    console.print(table)
+    console.print()
+
+
+@app.command()
+def list_scenarios():
+    """Show available scenario variants."""
+    table = Table(title="Scenario Variants")
+    table.add_column("Name", style="cyan")
+    table.add_column("Dangerous Claim")
+    table.add_column("Safe Claim")
+    table.add_column("Description")
+
+    for name, scen in SCENARIOS.items():
+        table.add_row(
+            name,
+            scen.dangerous_claim,
+            scen.safe_claim,
+            scen.description,
         )
 
     console.print()
@@ -191,11 +225,13 @@ def list_characters():
 @app.command()
 def show_script(
     characters: str = typer.Option("canonical", help=CHARACTERS_HELP),
+    scenario: str = typer.Option("hunting", help=SCENARIO_HELP),
 ):
     """Show the attacker's scripted turns (the attack itself)."""
     chars = CHARACTER_SETS[characters]
-    turns = get_attacker_turns(chars)
-    console.print(f"\n[bold]{chars.attacker}'s turns:[/bold]\n")
+    scen = SCENARIOS[scenario]
+    turns = get_attacker_turns(scen)
+    console.print(f"\n[bold]{chars.attacker}'s turns ({scenario}):[/bold]\n")
     for i, line in enumerate(turns):
         marker = " [bold red]<-- FLIP[/bold red]" if i == FLIP_INDEX else ""
         console.print(f"  Turn {i+1}: [cyan]{line}[/cyan]{marker}")

@@ -15,6 +15,8 @@ from .experiment import (
     score_trial,
     CHARACTER_SETS,
     CharacterSet,
+    SCENARIOS,
+    Scenario,
     get_attacker_turns,
     get_sweeps,
 )
@@ -28,6 +30,7 @@ def run_conversation(
     system_prompt: str,
     sweep_name: str,
     chars: CharacterSet,
+    scenario: Scenario,
     on_turn: Optional[TurnCallback] = None,
     thinking: bool = False,
 ) -> TrialResult:
@@ -43,7 +46,7 @@ def run_conversation(
     """
     messages = [{"role": "system", "content": system_prompt}]
     turns: list[TurnResult] = []
-    attacker_turns = get_attacker_turns(chars)
+    attacker_turns = get_attacker_turns(scenario)
 
     for i, attacker_line in enumerate(attacker_turns):
         messages.append({"role": "user", "content": attacker_line})
@@ -82,11 +85,12 @@ def run_conversation(
         if on_turn:
             on_turn(i, attacker_line, victim_says, is_post_flip)
 
-    duped, probable = score_trial(turns, chars.victim_season)
+    duped, probable = score_trial(turns, scenario.dangerous_claim, scenario.safe_claim)
     result = TrialResult(
         model=model,
         sweep=sweep_name,
         characters=chars.name,
+        scenario=scenario.name,
         turns=turns,
         duped=duped,
         probable=probable,
@@ -102,13 +106,15 @@ def run_sweep(
     sweep: str = "sweep-1",
     trials: int = 2,
     characters: str = "canonical",
+    scenario: str = "hunting",
     thinking: bool = False,
     on_turn: Optional[TurnCallback] = None,
     on_trial_start: Optional[Callable[[int], None]] = None,
 ) -> list[TrialResult]:
     """Run multiple trials of a given sweep variant."""
     chars = CHARACTER_SETS[characters]
-    sweeps = get_sweeps(chars)
+    scen = SCENARIOS[scenario]
+    sweeps = get_sweeps(chars, scen)
 
     if sweep not in sweeps:
         raise ValueError(f"Unknown sweep: {sweep}. Options: {list(sweeps.keys())}")
@@ -121,7 +127,7 @@ def run_sweep(
             on_trial_start(trial_num)
         result = run_conversation(
             model, system_prompt, sweep_name=sweep,
-            chars=chars, on_turn=on_turn, thinking=thinking,
+            chars=chars, scenario=scen, on_turn=on_turn, thinking=thinking,
         )
         results.append(result)
 
