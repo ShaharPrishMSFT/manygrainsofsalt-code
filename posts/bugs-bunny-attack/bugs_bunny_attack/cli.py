@@ -87,6 +87,15 @@ def run(
     extra_label = f" [dim][{', '.join(extra)}][/dim]" if extra else ""
     console.print(f"\n[bold]Running:[/bold] {model} x {sweep} ({description}) x {trials} trials{thinking_label}{extra_label}\n")
 
+    # Show the system prompt being used
+    _, system_prompt = sweeps[sweep]
+    console.print(Panel(
+        Text(system_prompt, style="dim"),
+        title="System Prompt",
+        border_style="cyan",
+    ))
+    console.print()
+
     results = run_sweep(
         model=model,
         sweep=sweep,
